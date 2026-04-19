@@ -1,0 +1,149 @@
+
+========================================================
+  Bazar.com — Sample Program Output
+========================================================
+
+Note: API requests were tested using Postman and Google Chrome to verify functionality and observe responses.
+
+The Result in order:
+Request (URL)
+Terminal (logs)
+Response (JSON)
+
+_____________________________________________________
+
+Test 1: Search by topic — "distributed systems"
+
+GET  http://localhost:3001/search/distributed%20systems
+
+Search request for topic: distributed systems
+
+[
+    {
+        "id": 1,
+        "title": "How to get a good grade in DOS in 40 minutes a day"
+    },
+    {
+        "id": 2,
+        "title": "RPCs for Noobs"
+    }
+]
+
+_____________________________________________________
+
+Test 2: Search by topic — "undergraduate school"
+
+
+GET  http://localhost:3000/search/undergraduate%20school
+
+Search request for topic: undergraduate school
+
+[
+    {
+        "id": 3,
+        "title": "Xen and the Art of Surviving Undergraduate School"
+    },
+    {
+        "id": 4,
+        "title": "Cooking for the Impatient Undergrad"
+    }
+]
+
+_____________________________________________________
+
+Test 3: Info request — item id 3
+
+
+GET  http://localhost:3000/info/3
+
+Info request for item id: 3
+
+{
+    "title": "Xen and the Art of Surviving Undergraduate School",
+    "quantity": 5,
+    "price": 60
+}
+
+_____________________________________________________
+
+Test 4: Purchase — item id 2 ("RPCs for Noobs")
+
+
+POST  http://localhost:3000/purchase/2
+
+Purchase request for item id: 2
+
+{
+    "message": "Purchase completed successfully",
+    "order": {
+        "orderId": 3,
+        "itemId": 2,
+        "title": "RPCs for Noobs",
+        "price": 70,
+        "purchasedAt": "2026-04-03T15:17:36.401Z"
+    }
+}
+
+_____________________________________________________
+
+Test 5: Info after purchase — confirm quantity decremented
+
+
+GET  http://localhost:3000/info/2
+
+Info request for item id: 2
+
+{
+    "title": "RPCs for Noobs",
+    "quantity": 0,
+    "price": 70
+}
+
+_____________________________________________________
+
+Test 6: Purchase item that is out of stock
+
+
+POST  http://localhost:3000/purchase/2
+ 
+Purchase request for item id: 2
+Purchase error: Request failed with status code 400
+
+ Response (HTTP 400):
+{
+  "error": "Purchase failed. Item is out of stock."
+}
+
+_____________________________________________________
+
+Test 7: Info for non-existent item id
+
+
+GET  http://localhost:3000/info/99
+
+Info error: Request failed with status code 404
+
+Response (HTTP 404):
+{
+    "error": "Book not found"
+}
+
+_____________________________________________________
+
+GET  Test 8: Search for topic with no matches
+
+
+http://localhost:3000/search/networking
+
+Search request for topic: networking
+No books found for topic: networking
+
+Response (HTTP 404):
+{
+    "error": "This topic does not exist"
+}
+
+
+========================================================
+  All tests passed. System working correctly  (⌐■_■)
+========================================================
