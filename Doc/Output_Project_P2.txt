@@ -1,0 +1,252 @@
+Lab 2 Output - Bazar.com
+
+System started using Docker Compose.
+
+Running services:
+- Frontend server on port 3000
+- Catalog replica 1 on port 3001
+- Catalog replica 2 on port 3003 externally / 3001 internally
+- Order replica 1 on port 3002
+- Order replica 2 on port 3004 externally / 3002 internally
+
+Startup logs:
+
+catalog1  | [catalog1] Catalog service running on port 3001
+catalog2  | [catalog2] Catalog service running on port 3001
+order1    | [order1] Order service running on port 3002
+order1    | [order1] Catalog replicas: http://catalog1:3001, http://catalog2:3001
+order2    | [order2] Order service running on port 3002
+order2    | [order2] Catalog replicas: http://catalog1:3001, http://catalog2:3001
+frontend  | Frontend server running on port 3000
+frontend  | Catalog replicas: http://catalog1:3001, http://catalog2:3001
+frontend  | Order replicas: http://order1:3002, http://order2:3002
+
+
+------------------------------------------------------------
+Test 1: Info request with cache miss
+------------------------------------------------------------
+
+Request:
+GET http://localhost:3000/info/1
+
+Response:
+{
+  "source": "http://catalog1:3001",
+  "data": {
+    "title": "How to get a good grade in DOS in 40 minutes a day",
+    "quantity": 5,
+    "price": 40
+  }
+}
+
+Logs:
+frontend  | CACHE MISS for book 1
+frontend  | Catalog load balancer selected: http://catalog1:3001
+catalog1  | [catalog1] Info request for book 1
+
+
+------------------------------------------------------------
+Test 2: Repeated info request with cache hit
+------------------------------------------------------------
+
+Request:
+GET http://localhost:3000/info/1
+
+Response:
+{
+  "source": "cache",
+  "data": {
+    "title": "How to get a good grade in DOS in 40 minutes a day",
+    "quantity": 5,
+    "price": 40
+  }
+}
+
+Logs:
+frontend  | CACHE HIT for book 1
+
+
+------------------------------------------------------------
+Test 3: Catalog load balancing
+------------------------------------------------------------
+
+Request:
+GET http://localhost:3000/search/distributed%20systems
+
+Response:
+{
+  "source": "http://catalog2:3001",
+  "data": [
+    {
+      "id": 1,
+      "title": "How to get a good grade in DOS in 40 minutes a day"
+    },
+    {
+      "id": 2,
+      "title": "RPCs for Noobs"
+    },
+    {
+      "id": 5,
+      "title": "How to finish Project 3 on time"
+    }
+  ]
+}
+
+Request:
+GET http://localhost:3000/search/undergraduate%20school
+
+Response:
+{
+  "source": "http://catalog1:3001",
+  "data": [
+    {
+      "id": 3,
+      "title": "Xen and the Art of Surviving Undergraduate School"
+    },
+    {
+      "id": 4,
+      "title": "Cooking for the Impatient Undergrad"
+    },
+    {
+      "id": 6,
+      "title": "Why theory classes are so hard"
+    },
+    {
+      "id": 7,
+      "title": "Spring in the Pioneer Valley"
+    }
+  ]
+}
+
+Logs:
+frontend  | Catalog load balancer selected: http://catalog2:3001
+catalog2  | [catalog2] Search topic: distributed systems
+frontend  | Catalog load balancer selected: http://catalog1:3001
+catalog1  | [catalog1] Search topic: undergraduate school
+
+
+------------------------------------------------------------
+Test 4: Purchase request with cache invalidation
+------------------------------------------------------------
+
+Request:
+POST http://localhost:3000/purchase/1
+
+Response:
+{
+  "source": "http://order1:3002",
+  "message": "Purchase completed successfully",
+  "data": {
+    "message": "Purchase completed successfully",
+    "order": {
+      "orderId": 1,
+      "itemId": 1,
+      "title": "How to get a good grade in DOS in 40 minutes a day",
+      "price": 40,
+      "purchasedAt": "2026-05-18T...",
+      "processedBy": "order1"
+    },
+    "updatedReplicas": [
+      "http://catalog1:3001",
+      "http://catalog2:3001"
+    ]
+  }
+}
+
+Logs:
+frontend  | Order load balancer selected: http://order1:3002
+catalog1  | [catalog1] Internal query for book 1
+order1    | [order1] Read book 1 from http://catalog1:3001
+order1    | [order1] Updated book 1 on http://catalog1:3001
+catalog1  | [catalog1] Updated book 1
+catalog2  | [catalog2] Updated book 1
+order1    | [order1] Updated book 1 on http://catalog2:3001
+order1    | [order1] bought book How to get a good grade in DOS in 40 minutes a day
+frontend  | CACHE INVALIDATED for book 1
+
+
+------------------------------------------------------------
+Test 5: Info request after purchase
+------------------------------------------------------------
+
+Request:
+GET http://localhost:3000/info/1
+
+Response:
+{
+  "source": "http://catalog1:3001",
+  "data": {
+    "title": "How to get a good grade in DOS in 40 minutes a day",
+    "quantity": 4,
+    "price": 40
+  }
+}
+
+Logs:
+frontend  | CACHE MISS for book 1
+frontend  | Catalog load balancer selected: http://catalog1:3001
+catalog1  | [catalog1] Info request for book 1
+
+
+------------------------------------------------------------
+Test 6: Catalog update with cache invalidation
+------------------------------------------------------------
+
+Request:
+PUT http://localhost:3000/update/1
+
+Body:
+{
+  "price": 55
+}
+
+Response:
+{
+  "message": "Catalog update completed on all replicas",
+  "updatedReplicas": [
+    {
+      "replica": "http://catalog1:3001",
+      "result": {
+        "replica": "catalog1",
+        "message": "Catalog updated successfully"
+      }
+    },
+    {
+      "replica": "http://catalog2:3001",
+      "result": {
+        "replica": "catalog2",
+        "message": "Catalog updated successfully"
+      }
+    }
+  ]
+}
+
+Logs:
+catalog1  | [catalog1] Updated book 1
+catalog2  | [catalog2] Updated book 1
+frontend  | Updated book 1 on http://catalog1:3001
+frontend  | Updated book 1 on http://catalog2:3001
+frontend  | CACHE INVALIDATED for book 1 after catalog update
+
+
+------------------------------------------------------------
+Test 7: Info request after update
+------------------------------------------------------------
+
+Request:
+GET http://localhost:3000/info/1
+
+Response:
+{
+  "source": "http://catalog2:3001",
+  "data": {
+    "title": "How to get a good grade in DOS in 40 minutes a day",
+    "quantity": 4,
+    "price": 55
+  }
+}
+
+Logs:
+frontend  | CACHE MISS for book 1
+frontend  | Catalog load balancer selected: http://catalog2:3001
+catalog2  | [catalog2] Info request for book 1
